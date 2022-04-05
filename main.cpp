@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
 
     //初始化
     server.init(config.PORT, user, passwd, databasename, config.LOGWrite, 
-                config.OPT_LINGER, config.TRIGMode,  config.sql_num,  config.thread_num, 
+                config.OPT_LINGER, config.TRIGMode,  config.sql_num, config.redis_num, config.thread_num, 
                 config.close_log, config.actor_model);
     
 
@@ -23,7 +23,8 @@ int main(int argc, char *argv[])
     server.log_write();
 
     //数据库
-    server.sql_pool();
+    //server.sql_pool();
+    server.redis_pool();
 
     //线程池
     server.thread_pool();

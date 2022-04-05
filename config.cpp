@@ -21,6 +21,7 @@ Config::Config(){
 
     //数据库连接池数量,默认8
     sql_num = 8;
+    redis_num = 8;
 
     //线程池内的线程数量,默认8
     thread_num = 8;
@@ -34,7 +35,7 @@ Config::Config(){
 
 void Config::parse_arg(int argc, char*argv[]){
     int opt;
-    const char *str = "p:l:m:o:s:t:c:a:";
+    const char *str = "p:l:m:o:s:r:t:c:a:";
     while ((opt = getopt(argc, argv, str)) != -1)
     {
         switch (opt)
@@ -63,6 +64,10 @@ void Config::parse_arg(int argc, char*argv[]){
         {
             sql_num = atoi(optarg);
             break;
+        }
+        case 'r':
+        {
+            redis_num = atoi(optarg);
         }
         case 't':
         {

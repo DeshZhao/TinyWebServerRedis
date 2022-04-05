@@ -29,13 +29,14 @@ WebServer::~WebServer()
 }
 
 void WebServer::init(int port, string user, string passWord, string databaseName, int log_write, 
-                     int opt_linger, int trigmode, int sql_num, int thread_num, int close_log, int actor_model)
+                     int opt_linger, int trigmode, int sql_num, int redis_num, int thread_num, int close_log, int actor_model)
 {
     m_port = port;
     m_user = user;
     m_passWord = passWord;
     m_databaseName = databaseName;
     m_sql_num = sql_num;
+    m_redis_num=redis_num;
     m_thread_num = thread_num;
     m_log_write = log_write;
     m_OPT_LINGER = opt_linger;
@@ -87,17 +88,34 @@ void WebServer::log_write()
 void WebServer::sql_pool()
 {
     //初始化数据库连接池
-    m_connPool = connection_pool::GetInstance();
+    connection_pool *m_connPool = connection_pool::GetInstance();
     m_connPool->init("localhost", m_user, m_passWord, m_databaseName, 3306, m_sql_num, m_close_log);
 
     //初始化数据库读取表
     users->initmysql_result(m_connPool);
 }
 
+void WebServer::redis_pool()
+{
+    //初始化数据库连接池
+    RedisConnectionPool *m_redisPool = RedisConnectionPool::RedisPoolInstance();
+    m_redisPool->init("localhost", m_user, m_passWord, m_databaseName, 6379, m_redis_num, m_close_log);
+
+    //初始化数据库读取表
+    users->initRedis_result(m_redisPool);
+}
+
 void WebServer::thread_pool()
 {
     //线程池
-    m_pool = new threadpool<http_conn>(m_actormodel, m_connPool, m_thread_num);
+    if(m_redis_num>0)
+    {
+        m_pool = new threadpool<http_conn>(m_actormodel, NULL, m_redisPool, m_thread_num);
+    }
+    else
+    {
+        m_pool = new threadpool<http_conn>(m_actormodel, m_connPool, NULL, m_thread_num);
+    }
 }
 
 void WebServer::eventListen()
@@ -201,7 +219,7 @@ bool WebServer::dealclinetdata()
 {
     struct sockaddr_in client_address;
     socklen_t client_addrlength = sizeof(client_address);
-    if (0 == m_LISTENTrigmode)
+    if (0 == m_LISTENTrigmode)//LT
     {
         int connfd = accept(m_listenfd, (struct sockaddr *)&client_address, &client_addrlength);
         if (connfd < 0)
@@ -298,7 +316,7 @@ void WebServer::dealwithread(int sockfd)
             {
                 if (1 == users[sockfd].timer_flag)
                 {
-                    deal_timer(timer, sockfd);
+                    deal_timer(timer, sockfd);//cb_func=& read_cb*
                     users[sockfd].timer_flag = 0;
                 }
                 users[sockfd].improv = 0;
@@ -415,7 +433,7 @@ void WebServer::eventLoop()
             //处理客户连接上接收到的数据
             else if (events[i].events & EPOLLIN)
             {
-                dealwithread(sockfd);
+                dealwithread(sockfd);//int idx=i/len; int j=i%len;
             }
             else if (events[i].events & EPOLLOUT)
             {

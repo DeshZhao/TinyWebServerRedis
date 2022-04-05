@@ -26,11 +26,12 @@ public:
     ~WebServer();
 
     void init(int port , string user, string passWord, string databaseName,
-              int log_write , int opt_linger, int trigmode, int sql_num,
+              int log_write , int opt_linger, int trigmode, int sql_num, int redis_num, 
               int thread_num, int close_log, int actor_model);
 
     void thread_pool();
     void sql_pool();
+    void redis_pool();
     void log_write();
     void trig_mode();
     void eventListen();
@@ -57,10 +58,12 @@ public:
 
     //数据库相关
     connection_pool *m_connPool;
+    RedisConnectionPool *m_redisPool;
     string m_user;         //登陆数据库用户名
     string m_passWord;     //登陆数据库密码
     string m_databaseName; //使用数据库名
     int m_sql_num;
+    int m_redis_num;
 
     //线程池相关
     threadpool<http_conn> *m_pool;

@@ -1,7 +1,9 @@
 #include "http_conn.h"
+#include "webserver.h"
 
 #include <mysql/mysql.h>
 #include <fstream>
+#include <vector>
 
 //定义http响应的一些状态信息
 const char *ok_200_title = "OK";
@@ -44,6 +46,96 @@ void http_conn::initmysql_result(connection_pool *connPool)
         string temp1(row[0]);
         string temp2(row[1]);
         users[temp1] = temp2;
+    }
+}
+
+void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
+{
+    CacheConn *redis = NULL;
+    RedisConnectionRAII rediscon(&redis, ConnPool);
+
+    redisReply *ResLen = (redisReply*)redisCommand(&redis->m_pContext, "LLEN users_list");
+    for(int i=0;i<stoi(ResLen->str);i++)
+    {
+        redisReply *Res = (redisReply*)redisCommand(&redis->m_pContext, "LINDEX users_list %d", i+1);
+        vector<string>temp;
+        string x;
+        stringstream ss;
+        ss>>Res->str;
+        while(getline(ss,'+',x))
+        {
+            temp.push_back(x);
+        }
+        users[temp[0]] = temp[1];
+    }
+
+    //全局Tokens存入Redis，并设置过期时间
+    time_t cur = time(NULL);
+    string str_time_cur=to_string(cur);
+    redisReply *ExistToken = (redisReply*)redisCommand(&redis->m_pContext, "EXISTS Token_pictrue");
+    redisReply *DelTokensRes = NULL;
+    if(ExistToken->str == "0")
+    {
+        m_Token_pictrue="xxxpicture"+str_time_cur;
+        redisReply *SetToken_picture = (redisReply*)redisCommand(&redis->m_pContext, "SET Token_pictrue %s", m_Token_pictrue);
+        if(SetToken_picture->str == "OK")
+        {
+            redisCommand(&redis->m_pContext, "EXPIRE Token_pictrue 60");
+        }
+    }else
+    {
+        DelTokensRes = (redisReply*)redisCommand(&redis->m_pContext, "DEL Token_pictrue");
+        if("1" == DelTokensRes->str)
+        {
+            LOG_ERROR("Token_pictrue clear success");
+        }
+        else
+        {
+            LOG_ERROR("Token_pictrue clear fail");
+        }
+    }
+    ExistToken = (redisReply*)redisCommand(&redis->m_pContext, "EXISTS Token_video");
+    if(SetTokenRes->str == "0")
+    {
+        m_Token_video="xxxvideo"+str_time_cur;
+        redisReply *SetToken_video = (redisReply*)redisCommand(&redis->m_pContext, "SET Token_video %s", m_Token_video);
+        if(SetToken_video->str == "OK")
+        {
+            redisCommand(&redis->m_pContext, "EXPIRE Token_video 60");
+        }
+    }
+    else
+    {
+        DelTokensRes = (redisReply*)redisCommand(&redis->m_pContext, "DEL Token_video");
+        if("1" == DelTokensRes->str)
+        {
+            LOG_ERROR("Token_video clear success");
+        }
+        else
+        {
+            LOG_ERROR("Token_video clear fail");
+        }
+    }
+    ExistToken = (redisReply*)redisCommand(&redis->m_pContext, "EXISTS Token_fans");
+    if(ExistToken->str == "0")
+    {
+        m_Token_fans="xxxfans"+str_time_cur;
+        redisReply *SetToken_fans = (redisReply*)redisCommand(&redis->m_pContext, "SET Token_fans %s", m_Token_video);
+        if(SetToken_fans->str == "OK")
+        {
+            redisCommand(&redis->m_pContext, "EXPIRE Token_fans 60");
+        }
+    }
+    else
+    {
+        DelTokensRes = (redisReply*)redisCommand(&redis->m_pContext, "DEL Token_video");
+        if("1" == DelTokensRes->str)
+        {
+            LOG_ERROR("Token_fans clear success");
+        }else
+        {
+            LOG_ERROR("Token_fans clear fail");
+        }
     }
 }
 
@@ -111,7 +203,7 @@ void http_conn::close_conn(bool real_close)
 
 //初始化连接,外部调用初始化套接字地址
 void http_conn::init(int sockfd, const sockaddr_in &addr, char *root, int TRIGMode,
-                     int close_log, string user, string passwd, string sqlname)
+                     int close_log, string user, string passwd, string sqlname, string redisname)
 {
     m_sockfd = sockfd;
     m_address = addr;
@@ -127,6 +219,10 @@ void http_conn::init(int sockfd, const sockaddr_in &addr, char *root, int TRIGMo
     strcpy(sql_user, user.c_str());
     strcpy(sql_passwd, passwd.c_str());
     strcpy(sql_name, sqlname.c_str());
+
+    strcpy(redis_user, user.c_str());
+    strcpy(redis_passwd, passwd.c_str());
+    strcpy(redis_name, redisname.c_str());
 
     init();
 }
@@ -247,6 +343,24 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text)
         return BAD_REQUEST;
     }
     *m_url++ = '\0';
+
+    string Token_req = text;
+    m_Token_pictrue=NULL;
+    m_Token_video=NULL;
+    m_Token_fans==NULL;
+    string::size_type idx0=Token_req.find("m_Token_pictrue");
+    if(idx0 == string::npos)
+    {
+        return NO_TOKENS;
+    }else
+    {
+        string::size_type idx1=Token_req.find("m_Token_video");
+        m_Token_pictrue=Token_req.substr(idx0,idx1-idx0);
+        string::size_type idx2=Token_req.find("m_Token_fans");
+        m_Token_video=Token_req.substr(idx1,idx2-idx1);
+        m_Token_fans=Token_req.substr(idx2,Token_req.size()-1);
+    }
+    
     char *method = text;
     if (strcasecmp(method, "GET") == 0)
         m_method = GET;
@@ -422,22 +536,23 @@ http_conn::HTTP_CODE http_conn::do_request()
         {
             //如果是注册，先检测数据库中是否有重名的
             //没有重名的，进行增加数据
-            char *sql_insert = (char *)malloc(sizeof(char) * 200);
-            strcpy(sql_insert, "INSERT INTO user(username, passwd) VALUES(");
-            strcat(sql_insert, "'");
-            strcat(sql_insert, name);
-            strcat(sql_insert, "', '");
-            strcat(sql_insert, password);
-            strcat(sql_insert, "')");
+            // char *sql_insert = (char *)malloc(sizeof(char) * 200);
+            // strcpy(sql_insert, "INSERT INTO user(username, passwd) VALUES(");
+            // strcat(sql_insert, "'");
+            // strcat(sql_insert, name);
+            // strcat(sql_insert, "', '");
+            // strcat(sql_insert, password);
+            // strcat(sql_insert, "')");
 
             if (users.find(name) == users.end())
             {
                 m_lock.lock();
-                int res = mysql_query(mysql, sql_insert);
+                //int res = mysql_query(mysql, sql_insert);
+                redisReply *res = (redisReply*)redisCommand(&redis->m_pContext, "SET %s %s", name, password);
                 users.insert(pair<string, string>(name, password));
                 m_lock.unlock();
 
-                if (!res)
+                if (res->str == "OK")
                     strcpy(m_url, "/log.html");
                 else
                     strcpy(m_url, "/registerError.html");
@@ -451,11 +566,13 @@ http_conn::HTTP_CODE http_conn::do_request()
         {
             if (users.find(name) != users.end() && users[name] == password)
                 strcpy(m_url, "/welcome.html");
+                //生成token，发放token给http::GET
             else
                 strcpy(m_url, "/logError.html");
         }
     }
 
+    redisReply *CheckTokens = NULL;
     if (*(p + 1) == '0')
     {
         char *m_url_real = (char *)malloc(sizeof(char) * 200);
@@ -474,27 +591,49 @@ http_conn::HTTP_CODE http_conn::do_request()
     }
     else if (*(p + 1) == '5')
     {
-        char *m_url_real = (char *)malloc(sizeof(char) * 200);
-        strcpy(m_url_real, "/picture.html");
-        strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+        CheckTokens = (redisReply*)redisCommand(&redis->m_pContext, "EXISTS Token_pictrue");
+        if("1" == CheckTokens->str)
+        {
+            char *m_url_real = (char *)malloc(sizeof(char) * 200);
+            strcpy(m_url_real, "/picture.html");
+            strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
 
-        free(m_url_real);
+            free(m_url_real);
+        }
+        else
+        {
+            LOG_ERROR("Http request about picture is expired");
+        }
     }
     else if (*(p + 1) == '6')
     {
-        char *m_url_real = (char *)malloc(sizeof(char) * 200);
-        strcpy(m_url_real, "/video.html");
-        strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+        CheckTokens = (redisReply*)redisCommand(&redis->m_pContext, "EXISTS Token_video");
+        if("1" == CheckTokens->str)
+        {
+            char *m_url_real = (char *)malloc(sizeof(char) * 200);
+            strcpy(m_url_real, "/video.html");
+            strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
 
-        free(m_url_real);
+            free(m_url_real);
+        }else
+        {
+            LOG_ERROR("Http request about video is expired");
+        }
     }
     else if (*(p + 1) == '7')
     {
-        char *m_url_real = (char *)malloc(sizeof(char) * 200);
-        strcpy(m_url_real, "/fans.html");
-        strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+        CheckTokens = (redisReply*)redisCommand(&redis->m_pContext, "EXISTS Token_fans");
+        if("1" == CheckTokens->str)
+        {
+            char *m_url_real = (char *)malloc(sizeof(char) * 200);
+            strcpy(m_url_real, "/fans.html");
+            strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
 
-        free(m_url_real);
+            free(m_url_real);
+        }else
+        {
+            LOG_ERROR("Http request about fans is expired");
+        }
     }
     else
         strncpy(m_real_file + len, m_url, FILENAME_LEN - len - 1);
@@ -626,6 +765,10 @@ bool http_conn::add_content(const char *content)
 {
     return add_response("%s", content);
 }
+bool http_conn::add_Tokens(const char *token)
+{
+    return add_response("%s", token);
+}
 bool http_conn::process_write(HTTP_CODE ret)
 {
     switch (ret)
@@ -660,6 +803,7 @@ bool http_conn::process_write(HTTP_CODE ret)
         if (m_file_stat.st_size != 0)
         {
             add_headers(m_file_stat.st_size);
+            add_Tokens(m_Token_pictrue+m_Token_video+m_Token_fans);
             m_iv[0].iov_base = m_write_buf;
             m_iv[0].iov_len = m_write_idx;
             m_iv[1].iov_base = m_file_address;

@@ -23,6 +23,7 @@
 
 #include "../lock/locker.h"
 #include "../CGImysql/sql_connection_pool.h"
+#include "../CGImysql/redis_connection_pool.h"
 #include "../timer/lst_timer.h"
 #include "../log/log.h"
 
@@ -59,7 +60,8 @@ public:
         FORBIDDEN_REQUEST,
         FILE_REQUEST,
         INTERNAL_ERROR,
-        CLOSED_CONNECTION
+        CLOSED_CONNECTION,
+        NO_TOKENS
     };
     enum LINE_STATUS
     {
@@ -73,7 +75,7 @@ public:
     ~http_conn() {}
 
 public:
-    void init(int sockfd, const sockaddr_in &addr, char *, int, int, string user, string passwd, string sqlname);
+    void init(int sockfd, const sockaddr_in &addr, char *, int, int, string user, string passwd, string sqlname, string redisname);
     void close_conn(bool real_close = true);
     void process();
     bool read_once();
@@ -83,6 +85,7 @@ public:
         return &m_address;
     }
     void initmysql_result(connection_pool *connPool);
+    void initRedis_result(RedisConnectionPool *connPool);
     int timer_flag;
     int improv;
 
@@ -106,14 +109,19 @@ private:
     bool add_content_length(int content_length);
     bool add_linger();
     bool add_blank_line();
+    bool add_Tokens(const char *token);
 
 public:
     static int m_epollfd;
     static int m_user_count;
     MYSQL *mysql;
+    CacheConn *redis;
     int m_state;  //读为0, 写为1
 
 private:
+    static std::string m_Token_pictrue;
+    static std::string m_Token_video;
+    static std::string m_Token_fans;
     int m_sockfd;
     sockaddr_in m_address;
     char m_read_buf[READ_BUFFER_SIZE];
@@ -147,6 +155,10 @@ private:
     char sql_user[100];
     char sql_passwd[100];
     char sql_name[100];
+
+    char redis_user[100];
+    char redis_passwd[100];
+    char redis_name[100];
 };
 
 #endif
