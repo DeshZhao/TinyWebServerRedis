@@ -6,6 +6,7 @@
 #include <exception>
 #include <pthread.h>
 #include "../lock/locker.h"
+#include "webserver.h"
 #include "../CGImysql/sql_connection_pool.h"
 #include "../CGIRedis/redis_connection_pool.h"
 
@@ -32,11 +33,11 @@ private:
     locker m_queuelocker;       //保护请求队列的互斥锁
     sem m_queuestat;            //是否有任务需要处理
     connection_pool *m_connPool;  //数据库
-    RedisConnectionPool *m_redisPool; //redis
+    RedisConnectionPool *m_redisPool; //redis连接池
     int m_actor_model;          //模型切换
 };
 template <typename T>
-threadpool<T>::threadpool( int actor_model, connection_pool *connPool, RedisConnectionPool *redisPool, int thread_number, int max_requests) : m_actor_model(actor_model),m_thread_number(thread_number), m_max_requests(max_requests), m_threads(NULL),m_connPool(connPool), m_redisPool(redisPool)
+threadpool<T>::threadpool( int actor_model, connection_pool *connPool, RedisConnectionPool *redisPool, int thread_number, int max_requests) : m_actor_model(actor_model),m_thread_number(thread_number), m_max_requests(max_requests), m_threads(NULL), m_connPool(connPool), m_redisPool(redisPool)
 {
     if (thread_number <= 0 || max_requests <= 0)
         throw std::exception();
@@ -122,7 +123,14 @@ void threadpool<T>::run()
                 if (request->read_once())
                 {
                     request->improv = 1;
-                    connectionRAII mysqlcon(&request->mysql, m_connPool);
+                    if(m_redisPool)
+                    {
+                        RedisConnectionRAII rediscon(&request->redis, m_redisPool);
+                    }
+                    else
+                    {
+                        connectionRAII mysqlcon(&request->mysql, m_connPool);
+                    }
                     request->process();
                 }
                 else
@@ -146,7 +154,14 @@ void threadpool<T>::run()
         }
         else
         {
-            connectionRAII mysqlcon(&request->mysql, m_connPool);
+            if(m_redisPool)
+            {
+                RedisConnectionRAII rediscon(&request->redis, m_redisPool);
+            }
+            else
+            {
+                connectionRAII mysqlcon(&request->mysql, m_connPool);
+            }
             request->process();
         }
     }
