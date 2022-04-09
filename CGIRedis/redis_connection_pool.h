@@ -1,7 +1,7 @@
 #ifndef _REDIS_CONNECTION_POOL_
 #define _REDIS_CONNECTION_POOL_
 
-#include <../hiredis/hiredis.h>
+#include <hiredis/hiredis.h>
 #include <stdio.h>
 #include <string>
 #include <string.h>
