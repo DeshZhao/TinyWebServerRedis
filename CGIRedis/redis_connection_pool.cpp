@@ -31,7 +31,7 @@ int CacheConn::Init(string Url, string Port)
 		0,200000
 	};
 	
-	m_pContext = redisConnectWithTimeout(Url.c_str(), Port.c_str(), timeout);
+	m_pContext = redisConnectWithTimeout(Url.c_str(), Port-'0', timeout);
 
 	if(!m_pContext || m_pContext->err)
 	{
@@ -46,10 +46,10 @@ int CacheConn::Init(string Url, string Port)
 	
 	redisReply* reply;
 	//登陆验证：
-	if(!m_password.empty())
+	if(!m_PassWord.empty())
 	{
 		reply = (redisReply *)redisCommand(m_pContext, "AUTH %s", "");
-		if(!reply || redis->type == REDIS_REPLY_ERROR)
+		if(!reply || reply->type == REDIS_REPLY_ERROR)
 		{
 			if(reply){
 				freeReplyObject(reply);

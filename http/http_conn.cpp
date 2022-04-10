@@ -2,6 +2,7 @@
 #include "../webserver.h"
 
 #include <mysql/mysql.h>
+#include <sstream>
 #include <fstream>
 #include <vector>
 
@@ -803,7 +804,9 @@ bool http_conn::process_write(HTTP_CODE ret)
         if (m_file_stat.st_size != 0)
         {
             add_headers(m_file_stat.st_size);
-            add_Tokens((m_Token_pictrue+m_Token_video)+m_Token_fans);
+            string add_t = m_Token_pictrue+m_Token_video;
+            add_t+=m_Token_fans;
+            add_Tokens(add_t);
             m_iv[0].iov_base = m_write_buf;
             m_iv[0].iov_len = m_write_idx;
             m_iv[1].iov_base = m_file_address;
