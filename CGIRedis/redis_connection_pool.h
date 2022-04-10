@@ -11,6 +11,7 @@
 #include <iostream>
 #include "../lock/locker.h"
 #include "../log/log.h"
+#include <map>
 
 using namespace std;
 
@@ -18,13 +19,13 @@ class CacheConn
 {
 public:
     int Init();
+
+	CacheConn();
+	~CacheConn();
 public:
     redisContext* m_pContext = NULL;
 private:
     int m_last_connect_time = 0;
-private:
-    CacheConn();
-	~CacheConn();
 };
 
 class RedisConnectionPool
@@ -36,9 +37,9 @@ public:
 	static RedisConnectionPool *RedisPoolInstance();
 	int GetFreeRedisConnection();
     bool RedisDisconnection(CacheConn* Conn);
-    void DestroyRedisPoll();
+    void DestroyRedisPool();
 
-	friend int CacheConn::Init();
+	friend class CacheConn;
 private:
     RedisConnectionPool();
     ~RedisConnectionPool();
@@ -51,7 +52,7 @@ private:
 	sem reserve;
 
 public:
-	string m_url;			 //主机地址
+	string m_Url;			 //主机地址
 	string m_Port;		 //数据库端口号
 	string m_User;		 //登陆数据库用户名
 	string m_PassWord;	 //登陆数据库密码

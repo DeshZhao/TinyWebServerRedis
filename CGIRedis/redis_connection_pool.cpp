@@ -16,7 +16,7 @@ RedisConnectionPool::RedisConnectionPool()
     this->m_CurConn=0;
 }
 
-int CacheConn::Init()
+int CacheConn::Init(string Url, string Port)
 {
 	//重连
 	time_t cur_time = time(NULL);
@@ -31,7 +31,7 @@ int CacheConn::Init()
 		0,200000
 	};
 	
-	m_pContext = redisConnectWithTimeout(m_url.c_str(), m_Port.c_str(), timeout);
+	m_pContext = redisConnectWithTimeout(Url.c_str(), Port.c_str(), timeout);
 
 	if(!m_pContext || m_pContext->err)
 	{
@@ -82,7 +82,7 @@ RedisConnectionPool *RedisConnectionPool::RedisPoolInstance()
 
 void RedisConnectionPool::init(string url, string User, string PassWord, string DBName, int Port, int MaxConn, int close_log)
 {
-    m_url = url;
+    m_Url = url;
 	m_Port = Port;
 	m_User = User;
 	m_PassWord = PassWord;
@@ -92,11 +92,12 @@ void RedisConnectionPool::init(string url, string User, string PassWord, string 
 	for (int i = 0; i < MaxConn; i++)
 	{
 		CacheConn *con = NULL;
-		con = new CacheConn();
+		con = new CacheConn;
 
-        if(con->Init() != 0 || con == NULL)
+		int r = con->Init(m_Url, m_Port);
+        if( r != 0 || con == NULL)
 		{
-			if(con->Init() == 1)
+			if(r == 1)
 			{
 				delete con;
 			}
@@ -165,7 +166,7 @@ bool RedisConnectionPool::RedisDisconnection(CacheConn *con)
 }
 
 //销毁数据库连接池
-void RedisConnectionPool::DestroyRedisPoll()
+void RedisConnectionPool::DestroyRedisPool()
 {
 	lock.lock();
 	if (connList.size() > 0)
