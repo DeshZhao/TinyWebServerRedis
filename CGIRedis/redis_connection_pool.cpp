@@ -31,7 +31,7 @@ int CacheConn::Init()
 		0,200000
 	};
 	
-	Cachetemp.m_pContext = redisConnectWithTimeout(m_url.c_str(), m_port.c_str(), timeout);
+	m_pContext = redisConnectWithTimeout(m_url.c_str(), m_Port.c_str(), timeout);
 
 	if(!m_pContext || m_pContext->err)
 	{
@@ -40,7 +40,7 @@ int CacheConn::Init()
 			redisFree(m_pContext);
 			m_pContext = NULL;
 		}
-		LOG_ERR("redis connect failed");
+		LOG_ERROR("redis connect failed");
 		return 1;
 	}
 	
@@ -68,15 +68,10 @@ int CacheConn::Init()
 	else
 	{
 		if (reply)
-			log_error("select cache db failed:%s\n", reply->str);
+			LOG_ERROR("select cache db failed:%s\n", reply->str);
 		return 2;
 	}
 
-}
-
-RedisConnectionPool::~RedisConnectionPool()
-{
-	DestroyRedisPoll();
 }
 
 RedisConnectionPool *RedisConnectionPool::RedisPoolInstance()
@@ -116,7 +111,7 @@ void RedisConnectionPool::init(string url, string User, string PassWord, string 
 	reserve = sem(m_FreeConn);
 	m_MaxConn = m_FreeConn;
 
-	LOG_ERROR("cache pool: %s, list size: %lu", ConPool.c_str(), connList.size());
+	LOG_ERROR("cache pool: %s, list size: %lu", m_DatabaseName, connList.size());
 }
 
 //当有请求时，从数据库连接池中返回一个可用连接，更新使用和空闲连接数
@@ -179,7 +174,7 @@ void RedisConnectionPool::DestroyRedisPoll()
 		for (it = connList.begin(); it != connList.end(); ++it)
 		{
 			CacheConn *con = *it;
-			redisFree(con);
+			redisFree(con->m_pContext);
 		}
 		m_CurConn = 0;
 		m_FreeConn = 0;
@@ -200,11 +195,11 @@ RedisConnectionPool::~RedisConnectionPool()
 	DestroyRedisPool();
 }
 
-RedisConnectionRAII::RedisConnectionRAII(CacheConn **Con, RedisConnectionPool *connPool){
-	*Con = connPool->GetRedisConnection();
+RedisConnectionRAII::RedisConnectionRAII(CacheConn **Con, RedisConnectionPool *ConPool){//static
+	*Con = ConPool->GetRedisConnection();
 	
 	conRAII = *Con;
-	poolRAII = connPool;
+	poolRAII = ConPool;
 }
 
 RedisConnectionRAII::~RedisConnectionRAII(){

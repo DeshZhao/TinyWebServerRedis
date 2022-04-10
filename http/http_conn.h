@@ -23,7 +23,7 @@
 
 #include "../lock/locker.h"
 #include "../CGImysql/sql_connection_pool.h"
-#include "../CGImysql/redis_connection_pool.h"
+#include "../CGIRedis/redis_connection_pool.h"
 #include "../timer/lst_timer.h"
 #include "../log/log.h"
 
@@ -158,7 +158,6 @@ private:
 
     char redis_user[100];
     char redis_passwd[100];
-    char redis_name[100];
 };
 
 #endif

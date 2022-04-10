@@ -10,7 +10,7 @@
 #include <pthread.h>
 #include <iostream>
 #include "../lock/locker.h"
-#include "redis_connection_pool.h"
+#include "../log/log.h"
 
 using namespace std;
 
@@ -25,18 +25,20 @@ private:
 private:
     CacheConn();
 	~CacheConn();
-}
+};
 
 class RedisConnectionPool
 {
 public:
-    static CacheConn* GetRedisConnection();  //遍历list<CacheConn*>,Singleton
+    CacheConn* GetRedisConnection();  //遍历list<CacheConn*>
 	void init(string url, string User, string PassWord, string DataBaseName, int Port, int MaxConn, int close_log); 
 	
 	static RedisConnectionPool *RedisPoolInstance();
 	int GetFreeRedisConnection();
     bool RedisDisconnection(CacheConn* Conn);
     void DestroyRedisPoll();
+
+	friend int CacheConn::Init();
 private:
     RedisConnectionPool();
     ~RedisConnectionPool();
@@ -56,7 +58,7 @@ public:
 	string m_DatabaseName; //使用数据库名
    // CacheConn* pm_rct;  //redis结构体
 	int m_close_log;	//日志开关
-}
+};
 
 class RedisConnectionRAII{
 
@@ -67,6 +69,6 @@ public:
 private:
 	CacheConn *conRAII;
 	RedisConnectionPool *poolRAII;
-	std::unordered_map<string, RedisConnectionPool>m_cache_redisPool_Map;
+	map<string, RedisConnectionPool>m_cache_redisPool_Map;
 };
 #endif
