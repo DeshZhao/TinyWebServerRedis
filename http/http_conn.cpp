@@ -77,8 +77,8 @@ void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
     redisReply *DelTokensRes = NULL;
     if(ExistToken->str == "0")
     {
-        m_Token_pictrue="xxxpicture"+str_time_cur;
-        redisReply *SetToken_picture = (redisReply*)redisCommand(redis->m_pContext, "SET Token_pictrue %s", m_Token_pictrue);
+        m_Token_picture="xxxpicture"+str_time_cur;
+        redisReply *SetToken_picture = (redisReply*)redisCommand(redis->m_pContext, "SET Token_pictrue %s", m_Token_picture);
         if(SetToken_picture->str == "OK")
         {
             redisCommand(redis->m_pContext, "EXPIRE Token_pictrue 60");
@@ -346,17 +346,17 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text)
     *m_url++ = '\0';
 
     string Token_req = text;
-    m_Token_pictrue="";
+    m_Token_picture="";
     m_Token_video="";
     m_Token_fans="";
-    string::size_type idx0=Token_req.find("m_Token_pictrue");
+    string::size_type idx0=Token_req.find("m_Token_picture");
     if(idx0 == string::npos)
     {
         return NO_TOKENS;
     }else
     {
         string::size_type idx1=Token_req.find("m_Token_video");
-        m_Token_pictrue=Token_req.substr(idx0,idx1-idx0);
+        m_Token_picture=Token_req.substr(idx0,idx1-idx0);
         string::size_type idx2=Token_req.find("m_Token_fans");
         m_Token_video=Token_req.substr(idx1,idx2-idx1);
         m_Token_fans=Token_req.substr(idx2,Token_req.size()-1);
@@ -804,7 +804,7 @@ bool http_conn::process_write(HTTP_CODE ret)
         if (m_file_stat.st_size != 0)
         {
             add_headers(m_file_stat.st_size);
-            const char *add_t = (m_Token_pictrue+m_Token_video)+m_Token_fans;
+            const char *add_t = ((m_Token_picture+m_Token_video)+m_Token_fans).c_str();
             add_Tokens(add_t);
             m_iv[0].iov_base = m_write_buf;
             m_iv[0].iov_len = m_write_idx;

@@ -4,7 +4,6 @@
 #include <hiredis/hiredis.h>
 #include <stdio.h>
 #include <string>
-#include <string.h>
 #include <stdlib.h>
 #include <list>
 #include <pthread.h>
@@ -55,10 +54,10 @@ public:
 	string m_Url;			 //主机地址
 	string m_Port;		 //数据库端口号
 	string m_User;		 //登陆数据库用户名
-	static string m_PassWord = "";	 //登陆数据库密码
+	static string m_PassWord;	 //登陆数据库密码
 	string m_DatabaseName; //使用数据库名
    // CacheConn* pm_rct;  //redis结构体
-	static int m_close_log;	//日志开关
+	int m_close_log;	//日志开关
 };
 
 class RedisConnectionRAII{
