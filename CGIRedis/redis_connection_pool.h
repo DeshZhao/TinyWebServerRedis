@@ -1,16 +1,15 @@
-#ifndef _REDIS_CONNECTION_POOL_
-#define _REDIS_CONNECTION_POOL_
+#ifndef _REDIS_POOL_
+#define _REDIS_POOL_
 
 #include <hiredis/hiredis.h>
+#include <error.h>
 #include <stdio.h>
-#include <string>
+#include <string.h>
 #include <stdlib.h>
 #include <list>
-#include <pthread.h>
 #include <iostream>
 #include "../lock/locker.h"
 #include "../log/log.h"
-#include <map>
 
 using namespace std;
 
@@ -23,6 +22,7 @@ public:
 	~CacheConn();
 public:
     redisContext* m_pContext = NULL;
+	int RedisLogCtl;
 private:
     int m_last_connect_time = 0;
 };
@@ -38,7 +38,6 @@ public:
     bool RedisDisconnection(CacheConn* Conn);
     void DestroyRedisPool();
 
-	friend class CacheConn;
 private:
     RedisConnectionPool();
     ~RedisConnectionPool();
@@ -51,13 +50,14 @@ private:
 	sem reserve;
 
 public:
+    friend class CacheConn;
 	string m_Url;			 //主机地址
 	string m_Port;		 //数据库端口号
 	string m_User;		 //登陆数据库用户名
 	static string m_PassWord;	 //登陆数据库密码
 	string m_DatabaseName; //使用数据库名
    // CacheConn* pm_rct;  //redis结构体
-	int m_close_log;	//日志开关
+	static int m_close_log;	//日志开关
 };
 
 class RedisConnectionRAII{

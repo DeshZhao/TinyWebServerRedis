@@ -32,7 +32,7 @@ int CacheConn::Init(string Url, string Port, int LogCtl)
 	};
 	
 	m_pContext = redisConnectWithTimeout(Url.c_str(), stoi(Port), timeout);
-	RedisConnectionPool::m_close_log=LogCtl;
+	CacheConn::RedisLogCtl = LogCtl;
 
 	if(!m_pContext || m_pContext->err)
 	{
@@ -41,7 +41,7 @@ int CacheConn::Init(string Url, string Port, int LogCtl)
 			redisFree(m_pContext);
 			m_pContext = NULL;
 		}
-		LOG_ERROR("redis connect failed");
+		LOG_REDIS_ERROR("redis connect failed");
 		return 1;
 	}
 	
@@ -69,7 +69,7 @@ int CacheConn::Init(string Url, string Port, int LogCtl)
 	else
 	{
 		if (reply)
-			LOG_ERROR("select cache db failed:%s\n", reply->str);
+			LOG_REDIS_ERROR("select cache db failed:%s\n", reply->str);
 		return 2;
 	}
 
@@ -102,7 +102,7 @@ void RedisConnectionPool::init(string url, string User, string PassWord, string 
 			{
 				delete con;
 			}
-			LOG_ERROR("Redis Error");
+			LOG_REDIS_ERROR("Redis Error");
 			exit(1);
 		}
 		
@@ -113,7 +113,7 @@ void RedisConnectionPool::init(string url, string User, string PassWord, string 
 	reserve = sem(m_FreeConn);
 	m_MaxConn = m_FreeConn;
 
-	LOG_ERROR("cache pool: %s, list size: %lu", m_DatabaseName, connList.size());
+	LOG_REDIS_ERROR("cache pool: %s, list size: %lu", m_DatabaseName, connList.size());
 }
 
 //当有请求时，从数据库连接池中返回一个可用连接，更新使用和空闲连接数

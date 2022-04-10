@@ -23,7 +23,8 @@ int main(int argc, char *argv[])
     server.log_write();
 
     //数据库
-    //server.sql_pool();
+    server.sql_pool();
+    
     server.redis_pool();
 
     //线程池
