@@ -57,7 +57,7 @@ public:
 	static string m_PassWord;	 //登陆数据库密码
 	string m_DatabaseName; //使用数据库名
    // CacheConn* pm_rct;  //redis结构体
-	static int m_close_log;	//日志开关
+	int m_close_log;	//日志开关
 };
 
 class RedisConnectionRAII{

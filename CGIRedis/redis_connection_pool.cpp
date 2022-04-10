@@ -32,7 +32,7 @@ int CacheConn::Init(string Url, string Port, int LogCtl)
 	};
 	
 	m_pContext = redisConnectWithTimeout(Url.c_str(), stoi(Port), timeout);
-	CacheConn::RedisLogCtl = LogCtl;
+	RedisLogCtl = LogCtl;
 
 	if(!m_pContext || m_pContext->err)
 	{
@@ -102,7 +102,7 @@ void RedisConnectionPool::init(string url, string User, string PassWord, string 
 			{
 				delete con;
 			}
-			LOG_REDIS_ERROR("Redis Error");
+			LOG_ERROR("Redis Error");
 			exit(1);
 		}
 		
@@ -113,7 +113,7 @@ void RedisConnectionPool::init(string url, string User, string PassWord, string 
 	reserve = sem(m_FreeConn);
 	m_MaxConn = m_FreeConn;
 
-	LOG_REDIS_ERROR("cache pool: %s, list size: %lu", m_DatabaseName, connList.size());
+	LOG_ERROR("cache pool: %s, list size: %lu", m_DatabaseName, connList.size());
 }
 
 //当有请求时，从数据库连接池中返回一个可用连接，更新使用和空闲连接数

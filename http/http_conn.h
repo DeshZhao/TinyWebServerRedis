@@ -119,9 +119,9 @@ public:
     int m_state;  //读为0, 写为1
 
 private:
-    static std::string m_Token_picture;
-    static std::string m_Token_video;
-    static std::string m_Token_fans;
+    string m_Token_picture;
+    string m_Token_video;
+    string m_Token_fans;
     int m_sockfd;
     sockaddr_in m_address;
     char m_read_buf[READ_BUFFER_SIZE];

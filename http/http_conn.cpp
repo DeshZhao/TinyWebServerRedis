@@ -2,6 +2,7 @@
 #include "../webserver.h"
 
 #include <mysql/mysql.h>
+#include <hiredis/hiredis.h>
 #include <sstream>
 #include <fstream>
 #include <vector>
