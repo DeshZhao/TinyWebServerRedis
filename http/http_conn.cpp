@@ -63,7 +63,7 @@ void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
         string x;
         stringstream ss;
         ss>>Res->str;
-        while(getline(ss,'+',x))
+        while(getline(ss,x,'+'))
         {
             temp.push_back(x);
         }
@@ -804,8 +804,7 @@ bool http_conn::process_write(HTTP_CODE ret)
         if (m_file_stat.st_size != 0)
         {
             add_headers(m_file_stat.st_size);
-            string add_t = m_Token_pictrue+m_Token_video;
-            add_t+=m_Token_fans;
+            const char *add_t = (m_Token_pictrue+m_Token_video)+m_Token_fans;
             add_Tokens(add_t);
             m_iv[0].iov_base = m_write_buf;
             m_iv[0].iov_len = m_write_idx;

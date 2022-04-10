@@ -16,7 +16,7 @@ RedisConnectionPool::RedisConnectionPool()
     this->m_CurConn=0;
 }
 
-int CacheConn::Init(string Url, string Port, string LogCtl)
+int CacheConn::Init(string Url, string Port, int LogCtl)
 {
 	//重连
 	time_t cur_time = time(NULL);
@@ -31,7 +31,7 @@ int CacheConn::Init(string Url, string Port, string LogCtl)
 		0,200000
 	};
 	
-	m_pContext = redisConnectWithTimeout(Url.c_str(), Port-'0', timeout);
+	m_pContext = redisConnectWithTimeout(Url.c_str(), stoi(Port), timeout);
 	RedisConnectionPool::m_close_log=LogCtl;
 
 	if(!m_pContext || m_pContext->err)
@@ -47,7 +47,7 @@ int CacheConn::Init(string Url, string Port, string LogCtl)
 	
 	redisReply* reply;
 	//登陆验证：
-	if(!m_PassWord.empty())
+	if(!RedisConnectionPool::m_PassWord.empty())
 	{
 		reply = (redisReply *)redisCommand(m_pContext, "AUTH %s", "");
 		if(!reply || reply->type == REDIS_REPLY_ERROR)
