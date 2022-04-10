@@ -18,7 +18,7 @@ using namespace std;
 class CacheConn
 {
 public:
-    int Init(string Url, string Port);
+    int Init(string Url, string Port, string LogCtl);
 
 	CacheConn();
 	~CacheConn();

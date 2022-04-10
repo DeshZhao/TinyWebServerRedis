@@ -16,7 +16,7 @@ RedisConnectionPool::RedisConnectionPool()
     this->m_CurConn=0;
 }
 
-int CacheConn::Init(string Url, string Port)
+int CacheConn::Init(string Url, string Port, string LogCtl)
 {
 	//重连
 	time_t cur_time = time(NULL);
@@ -32,6 +32,7 @@ int CacheConn::Init(string Url, string Port)
 	};
 	
 	m_pContext = redisConnectWithTimeout(Url.c_str(), Port-'0', timeout);
+	RedisConnectionPool::m_close_log=LogCtl;
 
 	if(!m_pContext || m_pContext->err)
 	{
@@ -94,7 +95,7 @@ void RedisConnectionPool::init(string url, string User, string PassWord, string 
 		CacheConn *con = NULL;
 		con = new CacheConn;
 
-		int r = con->Init(m_Url, m_Port);
+		int r = con->Init(m_Url, m_Port, m_close_log);
         if( r != 0 || con == NULL)
 		{
 			if(r == 1)
