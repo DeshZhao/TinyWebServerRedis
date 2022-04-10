@@ -1,3 +1,4 @@
+#include <hiredis/hiredis.h>
 #include <stdio.h>
 #include <string>
 #include <string.h>
@@ -5,7 +6,6 @@
 #include <list>
 #include <pthread.h>
 #include <iostream>
-#include <hiredis/hiredis.h>
 #include "redis_connection_pool.h"
 
 using namespace std;
@@ -16,7 +16,21 @@ RedisConnectionPool::RedisConnectionPool()
     this->m_CurConn=0;
 }
 
-int CacheConn::Init(string Url, string Port, int LogCtl)
+CacheConn::CacheConn(){
+	this->m_last_connect_time=0;
+	this->m_pContext=NULL;
+	this->RedisLogCtl=0;
+}
+
+CacheConn::~CacheConn(){
+	if(m_pContext)
+	{
+		redisFree(m_pContext);
+		m_pContext = NULL;
+	}
+}
+
+int CacheConn::Init(string Url, string Port, int LogCtl, string r_PassWord)
 {
 	//重连
 	time_t cur_time = time(NULL);
@@ -33,6 +47,7 @@ int CacheConn::Init(string Url, string Port, int LogCtl)
 	
 	m_pContext = redisConnectWithTimeout(Url.c_str(), stoi(Port), timeout);
 	RedisLogCtl = LogCtl;
+	R_password = r_PassWord;
 
 	if(!m_pContext || m_pContext->err)
 	{
@@ -47,9 +62,9 @@ int CacheConn::Init(string Url, string Port, int LogCtl)
 	
 	redisReply* reply;
 	//登陆验证：
-	if(!RedisConnectionPool::m_PassWord.empty())
+	if(R_password)
 	{
-		reply = (redisReply *)redisCommand(m_pContext, "AUTH %s", "");
+		reply = (redisReply *)redisCommand(m_pContext, "AUTH %s", R_password);
 		if(!reply || reply->type == REDIS_REPLY_ERROR)
 		{
 			if(reply){
@@ -95,7 +110,7 @@ void RedisConnectionPool::init(string url, string User, string PassWord, string 
 		CacheConn *con = NULL;
 		con = new CacheConn;
 
-		int r = con->Init(m_Url, m_Port, m_close_log);
+		int r = con->Init(m_Url, m_Port, m_close_log, m_PassWord);
         if( r != 0 || con == NULL)
 		{
 			if(r == 1)

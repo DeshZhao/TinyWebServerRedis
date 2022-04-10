@@ -16,15 +16,16 @@ using namespace std;
 class CacheConn
 {
 public:
-    int Init(string Url, string Port, int LogCtl);
+    int Init(string Url, string Port, int LogCtl, string r_PassWord);
 
 	CacheConn();
 	~CacheConn();
 public:
-    redisContext* m_pContext = NULL;
+    redisContext* m_pContext;
 	int RedisLogCtl;
 private:
-    int m_last_connect_time = 0;
+    int m_last_connect_time;
+	string R_password;
 };
 
 class RedisConnectionPool
