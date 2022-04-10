@@ -18,7 +18,7 @@ using namespace std;
 class CacheConn
 {
 public:
-    int Init();
+    int Init(string Url, string Port);
 
 	CacheConn();
 	~CacheConn();
@@ -62,7 +62,6 @@ public:
 };
 
 class RedisConnectionRAII{
-
 public:
 	RedisConnectionRAII(CacheConn **con, RedisConnectionPool *connPool);
 	~RedisConnectionRAII();
@@ -70,6 +69,6 @@ public:
 private:
 	CacheConn *conRAII;
 	RedisConnectionPool *poolRAII;
-	map<string, RedisConnectionPool>m_cache_redisPool_Map;
+	//map<string, RedisConnectionPool>m_cache_redisPool_Map;
 };
 #endif

@@ -54,10 +54,10 @@ void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
     CacheConn *redis = NULL;
     RedisConnectionRAII rediscon(&redis, ConnPool);
 
-    redisReply *ResLen = (redisReply*)redisCommand(&redis->m_pContext, "LLEN users_list");
+    redisReply *ResLen = (redisReply*)redisCommand(redis->m_pContext, "LLEN users_list");
     for(int i=0;i<stoi(ResLen->str);i++)
     {
-        redisReply *Res = (redisReply*)redisCommand(&redis->m_pContext, "LINDEX users_list %d", i+1);
+        redisReply *Res = (redisReply*)redisCommand(redis->m_pContext, "LINDEX users_list %d", i+1);
         vector<string>temp;
         string x;
         stringstream ss;
@@ -72,19 +72,20 @@ void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
     //全局Tokens存入Redis，并设置过期时间
     time_t cur = time(NULL);
     string str_time_cur=to_string(cur);
-    redisReply *ExistToken = (redisReply*)redisCommand(&redis->m_pContext, "EXISTS Token_pictrue");
+    redisReply *ExistToken = (redisReply*)redisCommand(redis->m_pContext, "EXISTS Token_pictrue");
     redisReply *DelTokensRes = NULL;
     if(ExistToken->str == "0")
     {
         m_Token_pictrue="xxxpicture"+str_time_cur;
-        redisReply *SetToken_picture = (redisReply*)redisCommand(&redis->m_pContext, "SET Token_pictrue %s", m_Token_pictrue);
+        redisReply *SetToken_picture = (redisReply*)redisCommand(redis->m_pContext, "SET Token_pictrue %s", m_Token_pictrue);
         if(SetToken_picture->str == "OK")
         {
-            redisCommand(&redis->m_pContext, "EXPIRE Token_pictrue 60");
+            redisCommand(redis->m_pContext, "EXPIRE Token_pictrue 60");
         }
-    }else
+    }
+    else
     {
-        DelTokensRes = (redisReply*)redisCommand(&redis->m_pContext, "DEL Token_pictrue");
+        DelTokensRes = (redisReply*)redisCommand(redis->m_pContext, "DEL Token_pictrue");
         if("1" == DelTokensRes->str)
         {
             LOG_ERROR("Token_pictrue clear success");
@@ -94,19 +95,19 @@ void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
             LOG_ERROR("Token_pictrue clear fail");
         }
     }
-    ExistToken = (redisReply*)redisCommand(&redis->m_pContext, "EXISTS Token_video");
-    if(SetTokenRes->str == "0")
+    ExistToken = (redisReply*)redisCommand(redis->m_pContext, "EXISTS Token_video");
+    if(ExistToken->str == "0")
     {
         m_Token_video="xxxvideo"+str_time_cur;
-        redisReply *SetToken_video = (redisReply*)redisCommand(&redis->m_pContext, "SET Token_video %s", m_Token_video);
+        redisReply *SetToken_video = (redisReply*)redisCommand(redis->m_pContext, "SET Token_video %s", m_Token_video);
         if(SetToken_video->str == "OK")
         {
-            redisCommand(&redis->m_pContext, "EXPIRE Token_video 60");
+            redisCommand(redis->m_pContext, "EXPIRE Token_video 60");
         }
     }
     else
     {
-        DelTokensRes = (redisReply*)redisCommand(&redis->m_pContext, "DEL Token_video");
+        DelTokensRes = (redisReply*)redisCommand(redis->m_pContext, "DEL Token_video");
         if("1" == DelTokensRes->str)
         {
             LOG_ERROR("Token_video clear success");
@@ -116,19 +117,19 @@ void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
             LOG_ERROR("Token_video clear fail");
         }
     }
-    ExistToken = (redisReply*)redisCommand(&redis->m_pContext, "EXISTS Token_fans");
+    ExistToken = (redisReply*)redisCommand(redis->m_pContext, "EXISTS Token_fans");
     if(ExistToken->str == "0")
     {
         m_Token_fans="xxxfans"+str_time_cur;
-        redisReply *SetToken_fans = (redisReply*)redisCommand(&redis->m_pContext, "SET Token_fans %s", m_Token_video);
+        redisReply *SetToken_fans = (redisReply*)redisCommand(redis->m_pContext, "SET Token_fans %s", m_Token_video);
         if(SetToken_fans->str == "OK")
         {
-            redisCommand(&redis->m_pContext, "EXPIRE Token_fans 60");
+            redisCommand(redis->m_pContext, "EXPIRE Token_fans 60");
         }
     }
     else
     {
-        DelTokensRes = (redisReply*)redisCommand(&redis->m_pContext, "DEL Token_video");
+        DelTokensRes = (redisReply*)redisCommand(redis->m_pContext, "DEL Token_video");
         if("1" == DelTokensRes->str)
         {
             LOG_ERROR("Token_fans clear success");
@@ -344,9 +345,9 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text)
     *m_url++ = '\0';
 
     string Token_req = text;
-    m_Token_pictrue=NULL;
-    m_Token_video=NULL;
-    m_Token_fans==NULL;
+    m_Token_pictrue="";
+    m_Token_video="";
+    m_Token_fans="";
     string::size_type idx0=Token_req.find("m_Token_pictrue");
     if(idx0 == string::npos)
     {
@@ -547,7 +548,7 @@ http_conn::HTTP_CODE http_conn::do_request()
             {
                 m_lock.lock();
                 //int res = mysql_query(mysql, sql_insert);
-                redisReply *res = (redisReply*)redisCommand(&redis->m_pContext, "SET %s %s", name, password);
+                redisReply *res = (redisReply*)redisCommand(redis->m_pContext, "SET %s %s", name, password);
                 users.insert(pair<string, string>(name, password));
                 m_lock.unlock();
 
@@ -590,7 +591,7 @@ http_conn::HTTP_CODE http_conn::do_request()
     }
     else if (*(p + 1) == '5')
     {
-        CheckTokens = (redisReply*)redisCommand(&redis->m_pContext, "EXISTS Token_pictrue");
+        CheckTokens = (redisReply*)redisCommand(redis->m_pContext, "EXISTS Token_pictrue");
         if("1" == CheckTokens->str)
         {
             char *m_url_real = (char *)malloc(sizeof(char) * 200);
@@ -606,7 +607,7 @@ http_conn::HTTP_CODE http_conn::do_request()
     }
     else if (*(p + 1) == '6')
     {
-        CheckTokens = (redisReply*)redisCommand(&redis->m_pContext, "EXISTS Token_video");
+        CheckTokens = (redisReply*)redisCommand(redis->m_pContext, "EXISTS Token_video");
         if("1" == CheckTokens->str)
         {
             char *m_url_real = (char *)malloc(sizeof(char) * 200);
@@ -621,7 +622,7 @@ http_conn::HTTP_CODE http_conn::do_request()
     }
     else if (*(p + 1) == '7')
     {
-        CheckTokens = (redisReply*)redisCommand(&redis->m_pContext, "EXISTS Token_fans");
+        CheckTokens = (redisReply*)redisCommand(redis->m_pContext, "EXISTS Token_fans");
         if("1" == CheckTokens->str)
         {
             char *m_url_real = (char *)malloc(sizeof(char) * 200);
@@ -802,7 +803,7 @@ bool http_conn::process_write(HTTP_CODE ret)
         if (m_file_stat.st_size != 0)
         {
             add_headers(m_file_stat.st_size);
-            add_Tokens(m_Token_pictrue+m_Token_video+m_Token_fans);
+            add_Tokens((m_Token_pictrue+m_Token_video)+m_Token_fans);
             m_iv[0].iov_base = m_write_buf;
             m_iv[0].iov_len = m_write_idx;
             m_iv[1].iov_base = m_file_address;
