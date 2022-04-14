@@ -123,7 +123,7 @@ void threadpool<T>::run()
                 if (request->read_once())
                 {
                     request->improv = 1;
-                    if(m_redisPool)
+                    if(m_redisPool!=NULL && m_connPool==NULL)
                     {
                         RedisConnectionRAII rediscon(&request->redis, m_redisPool);
                     }
@@ -154,7 +154,7 @@ void threadpool<T>::run()
         }
         else
         {
-            if(m_redisPool)
+            if(m_redisPool!=NULL && m_connPool==NULL)
             {
                 RedisConnectionRAII rediscon(&request->redis, m_redisPool);
             }

@@ -23,14 +23,15 @@ CacheConn::CacheConn(){
 }
 
 CacheConn::~CacheConn(){
-	if(m_pContext)
+	if(this->m_pContext)
 	{
-		redisFree(m_pContext);
-		m_pContext = NULL;
+		redisFree(this->m_pContext);
+		this->m_pContext = NULL;
 	}
+	LOG_DEBUG("redis content from list close");
 }
 
-int CacheConn::Init(string Url, string Port, int LogCtl, string r_PassWord)
+int CacheConn::Init(string Url, int Port, int LogCtl, string r_PassWord)
 {
 	//重连
 	time_t cur_time = time(NULL);
@@ -45,7 +46,7 @@ int CacheConn::Init(string Url, string Port, int LogCtl, string r_PassWord)
 		0,200000
 	};
 	
-	m_pContext = redisConnectWithTimeout(Url.c_str(), stoi(Port), timeout);
+	m_pContext = redisConnectWithTimeout(Url.c_str(), Port, timeout);
 	RedisLogCtl = LogCtl;
 	R_password = r_PassWord;
 
@@ -62,9 +63,9 @@ int CacheConn::Init(string Url, string Port, int LogCtl, string r_PassWord)
 	
 	redisReply* reply;
 	//登陆验证：
-	if(R_password)
+	if(R_password != "")
 	{
-		reply = (redisReply *)redisCommand(m_pContext, "AUTH %s", R_password);
+		reply = (redisReply *)redisCommand(m_pContext, "AUTH %s", R_password.c_str());
 		if(!reply || reply->type == REDIS_REPLY_ERROR)
 		{
 			if(reply){
@@ -110,7 +111,7 @@ void RedisConnectionPool::init(string url, string User, string PassWord, string 
 		CacheConn *con = NULL;
 		con = new CacheConn;
 
-		int r = con->Init(m_Url, m_Port, m_close_log, m_PassWord);
+		int r = con->Init(m_Url, Port, m_close_log, m_PassWord);
         if( r != 0 || con == NULL)
 		{
 			if(r == 1)
@@ -128,7 +129,7 @@ void RedisConnectionPool::init(string url, string User, string PassWord, string 
 	reserve = sem(m_FreeConn);
 	m_MaxConn = m_FreeConn;
 
-	LOG_ERROR("cache pool: %s, list size: %lu", m_DatabaseName, connList.size());
+	LOG_DEBUG("cache pool: %s, list size: %lu", m_DatabaseName, connList.size());
 }
 
 //当有请求时，从数据库连接池中返回一个可用连接，更新使用和空闲连接数
@@ -137,7 +138,10 @@ CacheConn *RedisConnectionPool::GetRedisConnection()
 	CacheConn *con = NULL;
 
 	if (0 == connList.size())
+	{
+		LOG_REDIS_ERROR("redis con queue is empty");
 		return NULL;
+	}
 
 	reserve.wait();
 	
@@ -191,7 +195,8 @@ void RedisConnectionPool::DestroyRedisPool()
 		for (it = connList.begin(); it != connList.end(); ++it)
 		{
 			CacheConn *con = *it;
-			redisFree(con->m_pContext);
+			//redisFree(con->m_pContext);
+			con->~CacheConn();
 		}
 		m_CurConn = 0;
 		m_FreeConn = 0;

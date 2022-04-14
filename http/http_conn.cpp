@@ -53,22 +53,31 @@ void http_conn::initmysql_result(connection_pool *connPool)
 
 void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
 {
-    CacheConn *redis = NULL;
+    LocalRedisPool = ConnPool;
+    redis = NULL;
     RedisConnectionRAII rediscon(&redis, ConnPool);
+    if(redis == NULL)
+    {
+        LOG_ERROR("initRedis_result failed");
+    }
 
     redisReply *ResLen = (redisReply*)redisCommand(redis->m_pContext, "LLEN users_list");
-    for(int i=0;i<stoi(ResLen->str);i++)
+    
+    if(!ResLen->str.empty() && ResLen->str != '0')
     {
-        redisReply *Res = (redisReply*)redisCommand(redis->m_pContext, "LINDEX users_list %d", i+1);
-        vector<string>temp;
-        string x;
-        stringstream ss;
-        ss>>Res->str;
-        while(getline(ss,x,'+'))
+        for(int i=0;i<stoi(ResLen->str);i++)
         {
-            temp.push_back(x);
+            redisReply *Res = (redisReply*)redisCommand(redis->m_pContext, "LINDEX users_list %d", i+1);
+            vector<string>temp;
+            string x;
+            stringstreapm ss;
+            ss>>Res->str;
+            while(getline(ss,x,'+'))
+            {
+                temp.push_back(x);
+            }
+            users[temp[0]] = temp[1];
         }
-        users[temp[0]] = temp[1];
     }
 
     //全局Tokens存入Redis，并设置过期时间
@@ -76,10 +85,10 @@ void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
     string str_time_cur=to_string(cur);
     redisReply *ExistToken = (redisReply*)redisCommand(redis->m_pContext, "EXISTS Token_pictrue");
     redisReply *DelTokensRes = NULL;
-    if(ExistToken->str == "0")
+    if(0 == ExistToken->integer)
     {
         m_Token_picture="xxxpicture"+str_time_cur;
-        redisReply *SetToken_picture = (redisReply*)redisCommand(redis->m_pContext, "SET Token_pictrue %s", m_Token_picture);
+        redisReply *SetToken_picture = (redisReply*)redisCommand(redis->m_pContext, "SET Token_pictrue %s", m_Token_picture.c_str());
         if(SetToken_picture->str == "OK")
         {
             redisCommand(redis->m_pContext, "EXPIRE Token_pictrue 60");
@@ -88,7 +97,7 @@ void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
     else
     {
         DelTokensRes = (redisReply*)redisCommand(redis->m_pContext, "DEL Token_pictrue");
-        if("1" == DelTokensRes->str)
+        if(1 == DelTokensRes->integer)
         {
             LOG_ERROR("Token_pictrue clear success");
         }
@@ -98,10 +107,10 @@ void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
         }
     }
     ExistToken = (redisReply*)redisCommand(redis->m_pContext, "EXISTS Token_video");
-    if(ExistToken->str == "0")
+    if(0 == ExistToken->integer)
     {
         m_Token_video="xxxvideo"+str_time_cur;
-        redisReply *SetToken_video = (redisReply*)redisCommand(redis->m_pContext, "SET Token_video %s", m_Token_video);
+        redisReply *SetToken_video = (redisReply*)redisCommand(redis->m_pContext, "SET Token_video %s", m_Token_video.c_str());
         if(SetToken_video->str == "OK")
         {
             redisCommand(redis->m_pContext, "EXPIRE Token_video 60");
@@ -110,7 +119,7 @@ void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
     else
     {
         DelTokensRes = (redisReply*)redisCommand(redis->m_pContext, "DEL Token_video");
-        if("1" == DelTokensRes->str)
+        if(1 == DelTokensRes->integer)
         {
             LOG_ERROR("Token_video clear success");
         }
@@ -120,10 +129,10 @@ void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
         }
     }
     ExistToken = (redisReply*)redisCommand(redis->m_pContext, "EXISTS Token_fans");
-    if(ExistToken->str == "0")
+    if(0 == ExistToken->integer)
     {
         m_Token_fans="xxxfans"+str_time_cur;
-        redisReply *SetToken_fans = (redisReply*)redisCommand(redis->m_pContext, "SET Token_fans %s", m_Token_video);
+        redisReply *SetToken_fans = (redisReply*)redisCommand(redis->m_pContext, "SET Token_fans %s", m_Token_video.c_str());
         if(SetToken_fans->str == "OK")
         {
             redisCommand(redis->m_pContext, "EXPIRE Token_fans 60");
@@ -132,7 +141,7 @@ void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
     else
     {
         DelTokensRes = (redisReply*)redisCommand(redis->m_pContext, "DEL Token_video");
-        if("1" == DelTokensRes->str)
+        if(1 == DelTokensRes->integer)
         {
             LOG_ERROR("Token_fans clear success");
         }else
@@ -234,6 +243,7 @@ void http_conn::init(int sockfd, const sockaddr_in &addr, char *root, int TRIGMo
 void http_conn::init()
 {
     mysql = NULL;
+    redis = NULL;
     bytes_to_send = 0;
     bytes_have_send = 0;
     m_check_state = CHECK_STATE_REQUESTLINE;
@@ -354,7 +364,8 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text)
     if(idx0 == string::npos)
     {
         return NO_TOKENS;
-    }else
+    }
+    else
     {
         string::size_type idx1=Token_req.find("m_Token_video");
         m_Token_picture=Token_req.substr(idx0,idx1-idx0);
@@ -503,6 +514,8 @@ http_conn::HTTP_CODE http_conn::process_read()
 
 http_conn::HTTP_CODE http_conn::do_request()
 {
+    redis = NULL;
+    RedisConnectionRAII rediscon(&redis, LocalRedisPool);
     strcpy(m_real_file, doc_root);
     int len = strlen(doc_root);
     //printf("m_url:%s\n", m_url);
@@ -550,14 +563,21 @@ http_conn::HTTP_CODE http_conn::do_request()
             {
                 m_lock.lock();
                 //int res = mysql_query(mysql, sql_insert);
-                redisReply *res = (redisReply*)redisCommand(redis->m_pContext, "SET %s %s", name, password);
+                redisContext *m_pContext = NULL;
+                redisReply *res = (redisReply*)redisCommand(m_pContext, "SET %s %s", name.c_str(), password.c_str());
                 users.insert(pair<string, string>(name, password));
                 m_lock.unlock();
 
                 if (res->str == "OK")
+                {
+                    LOG_INFO("set a new user");
                     strcpy(m_url, "/log.html");
+                }
                 else
+                {
+                    LOG_ERROR("set a new user fail");
                     strcpy(m_url, "/registerError.html");
+                }
             }
             else
                 strcpy(m_url, "/registerError.html");
@@ -654,6 +674,7 @@ http_conn::HTTP_CODE http_conn::do_request()
     close(fd);
     return FILE_REQUEST;
 }
+
 void http_conn::unmap()
 {
     if (m_file_address)

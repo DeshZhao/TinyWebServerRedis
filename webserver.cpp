@@ -400,7 +400,7 @@ void WebServer::eventLoop()
     while (!stop_server)
     {
         int number = epoll_wait(m_epollfd, events, MAX_EVENT_NUMBER, -1);
-        if (number < 0 && errno != EINTR)
+        if (number < 0 && errno != EINTR) //忽略gdb系统调用
         {
             LOG_ERROR("%s", "epoll failure");
             break;
