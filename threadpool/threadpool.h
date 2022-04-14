@@ -160,7 +160,7 @@ void threadpool<T>::run()
             }
             else
             {
-                connectionRAII mysqlcon(&request->mysql, m_connPool);
+                //connectionRAII mysqlcon(&request->mysql, m_connPool);
             }
             request->process();
         }

@@ -360,7 +360,7 @@ http_conn::HTTP_CODE http_conn::parse_request_line(char *text)
     string::size_type idx0=Token_req.find("m_Token_picture");
     if(idx0 == string::npos)
     {
-        return NO_TOKENS;
+        //return NO_TOKENS;//updating http_code
     }
     else
     {

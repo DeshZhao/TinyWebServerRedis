@@ -28,7 +28,7 @@ CacheConn::~CacheConn(){
 		redisFree(this->m_pContext);
 		this->m_pContext = NULL;
 	}
-	LOG_DEBUG("redis content from list close");
+	LOG_REDIS_ERROR("redis content from list close");
 }
 
 int CacheConn::Init(string Url, int Port, int LogCtl, string r_PassWord)
@@ -129,7 +129,7 @@ void RedisConnectionPool::init(string url, string User, string PassWord, string 
 	reserve = sem(m_FreeConn);
 	m_MaxConn = m_FreeConn;
 
-	LOG_DEBUG("cache pool: %s, list size: %lu", m_DatabaseName, connList.size());
+	LOG_ERROR("cache pool: %s, list size: %lu", m_DatabaseName.c_str(), connList.size());
 }
 
 //当有请求时，从数据库连接池中返回一个可用连接，更新使用和空闲连接数
@@ -178,6 +178,7 @@ bool RedisConnectionPool::RedisDisconnection(CacheConn *con)
 	}
 	++m_FreeConn;
 	--m_CurConn;
+	LOG_INFO("redis con back to list RAII");
 
 	lock.unlock();
 
