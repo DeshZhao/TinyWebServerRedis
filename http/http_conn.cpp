@@ -63,21 +63,18 @@ void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
 
     redisReply *ResLen = (redisReply*)redisCommand(redis->m_pContext, "LLEN users_list");
     
-    if(!ResLen->str.empty() && ResLen->str != '0')
+    for(int i=0;i<ResLen->integer;i++)
     {
-        for(int i=0;i<stoi(ResLen->str);i++)
+        redisReply *Res = (redisReply*)redisCommand(redis->m_pContext, "LINDEX users_list %d", i+1);
+        vector<string>temp;
+        string x;
+        stringstream ss;
+        ss>>Res->str;
+        while(getline(ss,x,'+'))
         {
-            redisReply *Res = (redisReply*)redisCommand(redis->m_pContext, "LINDEX users_list %d", i+1);
-            vector<string>temp;
-            string x;
-            stringstreapm ss;
-            ss>>Res->str;
-            while(getline(ss,x,'+'))
-            {
-                temp.push_back(x);
-            }
-            users[temp[0]] = temp[1];
+            temp.push_back(x);
         }
+        users[temp[0]] = temp[1];
     }
 
     //全局Tokens存入Redis，并设置过期时间
@@ -563,8 +560,10 @@ http_conn::HTTP_CODE http_conn::do_request()
             {
                 m_lock.lock();
                 //int res = mysql_query(mysql, sql_insert);
+                string set_name = name;
+                string set_pass = password;
                 redisContext *m_pContext = NULL;
-                redisReply *res = (redisReply*)redisCommand(m_pContext, "SET %s %s", name.c_str(), password.c_str());
+                redisReply *res = (redisReply*)redisCommand(m_pContext, "SET %s %s", set_name.c_str(), set_pass.c_str());
                 users.insert(pair<string, string>(name, password));
                 m_lock.unlock();
 
@@ -614,7 +613,7 @@ http_conn::HTTP_CODE http_conn::do_request()
     else if (*(p + 1) == '5')
     {
         CheckTokens = (redisReply*)redisCommand(redis->m_pContext, "EXISTS Token_pictrue");
-        if("1" == CheckTokens->str)
+        if(1 == CheckTokens->integer)
         {
             char *m_url_real = (char *)malloc(sizeof(char) * 200);
             strcpy(m_url_real, "/picture.html");

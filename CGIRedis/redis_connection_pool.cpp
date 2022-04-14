@@ -139,7 +139,7 @@ CacheConn *RedisConnectionPool::GetRedisConnection()
 
 	if (0 == connList.size())
 	{
-		LOG_REDIS_ERROR("redis con queue is empty");
+		LOG_INFO("redis con queue is empty");
 		return NULL;
 	}
 
