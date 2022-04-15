@@ -53,9 +53,9 @@ void http_conn::initmysql_result(connection_pool *connPool)
 
 void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
 {
-    LocalRedisPool = ConnPool;
     redis = NULL;
     RedisConnectionRAII rediscon(&redis, ConnPool);
+    localRedisConn = redis->m_pContext;
     if(redis == NULL)
     {
         LOG_ERROR("initRedis_result failed");
@@ -511,8 +511,6 @@ http_conn::HTTP_CODE http_conn::process_read()
 
 http_conn::HTTP_CODE http_conn::do_request()
 {
-    redis = NULL;
-    RedisConnectionRAII rediscon(&redis, LocalRedisPool);
     strcpy(m_real_file, doc_root);
     int len = strlen(doc_root);
     //printf("m_url:%s\n", m_url);
@@ -562,8 +560,7 @@ http_conn::HTTP_CODE http_conn::do_request()
                 //int res = mysql_query(mysql, sql_insert);
                 string set_name = name;
                 string set_pass = password;
-                redisContext *m_pContext = NULL;
-                redisReply *res = (redisReply*)redisCommand(m_pContext, "SET %s %s", set_name.c_str(), set_pass.c_str());
+                redisReply *res = (redisReply*)redisCommand(localRedisConn, "SET %s %s", set_name.c_str(), set_pass.c_str());
                 users.insert(pair<string, string>(name, password));
                 m_lock.unlock();
 

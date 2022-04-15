@@ -116,7 +116,7 @@ public:
     static int m_user_count;
     MYSQL *mysql;
     CacheConn *redis;
-    RedisConnectionPool *LocalRedisPool;
+    redisContext *localRedisConn;
     int m_state;  //读为0, 写为1
 
 private:

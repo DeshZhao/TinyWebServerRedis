@@ -121,7 +121,7 @@ void RedisConnectionPool::init(string url, string User, string PassWord, string 
 			LOG_ERROR("Redis Error");
 			exit(1);
 		}
-		
+		LOG_INFO("redis pool init res: %lu", r);
 		connList.push_back(con);
 		++m_FreeConn;
 	}
