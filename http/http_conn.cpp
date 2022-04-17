@@ -635,8 +635,8 @@ http_conn::HTTP_CODE http_conn::do_request()
             strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
 
             free(m_url_real);
-            Reset_Token = (redisReply *)redisCommand(redis->m_pContext, "DEL Token_pictrue");//幂等操作，删除Token
-            if(1 == Reset_Token_pictrue->integer)
+            Reset_Token = (redisReply *)redisCommand(redis->m_pContext, "DEL Token_pictrue");//幂等操作，删除
+            if(1 == Reset_Token->integer)
             {
                 LOG_INFO("Token_pictrue is moved");
             }
@@ -662,7 +662,7 @@ http_conn::HTTP_CODE http_conn::do_request()
 
             free(m_url_real);
             Reset_Token = (redisReply *)redisCommand(redis->m_pContext, "DEL Token_video");//幂等操作，删除
-            if(1 == Reset_Token_video->integer)
+            if(1 == Reset_Token->integer)
             {
                 LOG_INFO("Token_video is moved");
             }
@@ -689,7 +689,7 @@ http_conn::HTTP_CODE http_conn::do_request()
             free(m_url_real);
 
             Reset_Token = (redisReply *)redisCommand(redis->m_pContext, "DEL Token_fans");//幂等操作，删除
-            if(1 == Reset_Token_fans->integer)
+            if(1 == Reset_Token->integer)
             {
                 LOG_INFO("Token_fans is moved");
             }
