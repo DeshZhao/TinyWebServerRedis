@@ -157,10 +157,11 @@ void threadpool<T>::run()
             if(m_redisPool!=NULL && m_connPool==NULL)
             {
                 RedisConnectionRAII rediscon(&request->redis, m_redisPool);
+                request->localRedisConn = request->redis->m_pContext;
             }
             else
             {
-                //connectionRAII mysqlcon(&request->mysql, m_connPool);
+                connectionRAII mysqlcon(&request->mysql, m_connPool);
             }
             request->process();
         }

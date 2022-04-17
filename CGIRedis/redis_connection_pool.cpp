@@ -19,7 +19,6 @@ RedisConnectionPool::RedisConnectionPool()
 CacheConn::CacheConn(){
 	this->m_last_connect_time=0;
 	this->m_pContext=NULL;
-	this->RedisLogCtl=0;
 }
 
 CacheConn::~CacheConn(){
@@ -28,7 +27,7 @@ CacheConn::~CacheConn(){
 		redisFree(this->m_pContext);
 		this->m_pContext = NULL;
 	}
-	LOG_REDIS_ERROR("redis content from list close");
+	LOG_ERROR("redis content from list close");
 }
 
 int CacheConn::Init(string Url, int Port, int LogCtl, string r_PassWord)
@@ -47,7 +46,7 @@ int CacheConn::Init(string Url, int Port, int LogCtl, string r_PassWord)
 	};
 	
 	m_pContext = redisConnectWithTimeout(Url.c_str(), Port, timeout);
-	RedisLogCtl = LogCtl;
+	m_close_log = LogCtl;
 	R_password = r_PassWord;
 
 	if(!m_pContext || m_pContext->err)
@@ -57,7 +56,7 @@ int CacheConn::Init(string Url, int Port, int LogCtl, string r_PassWord)
 			redisFree(m_pContext);
 			m_pContext = NULL;
 		}
-		LOG_REDIS_ERROR("redis connect failed");
+		LOG_ERROR("redis connect failed");
 		return 1;
 	}
 	
@@ -85,7 +84,7 @@ int CacheConn::Init(string Url, int Port, int LogCtl, string r_PassWord)
 	else
 	{
 		if (reply)
-			LOG_REDIS_ERROR("select cache db failed:%s\n", reply->str);
+			LOG_ERROR("select cache db failed:%s\n", reply->str);
 		return 2;
 	}
 
@@ -111,7 +110,7 @@ void RedisConnectionPool::init(string url, string User, string PassWord, string 
 		CacheConn *con = NULL;
 		con = new CacheConn;
 
-		int r = con->Init(m_Url, Port, m_close_log, m_PassWord);
+		int r = con->Init(m_Url, Port, close_log, m_PassWord);
         if( r != 0 || con == NULL)
 		{
 			if(r == 1)

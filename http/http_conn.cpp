@@ -55,10 +55,19 @@ void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
 {
     redis = NULL;
     RedisConnectionRAII rediscon(&redis, ConnPool);
-    localRedisConn = redis->m_pContext;
     if(redis == NULL)
     {
         LOG_ERROR("initRedis_result failed");
+    }
+    localRedisConn = redis->m_pContext;
+    if(localRedisConn == NULL)
+    {
+        LOG_ERROR("local redis session lose");
+    }
+    else
+    {
+        LOG_ERROR("local redis session INFO: err:%lu,fd:%lu,flag:%lu", localRedisConn->err, localRedisConn->fd, localRedisConn->flags);
+
     }
 
     redisReply *ResLen = (redisReply*)redisCommand(redis->m_pContext, "LLEN users_list");
@@ -241,6 +250,7 @@ void http_conn::init()
 {
     mysql = NULL;
     redis = NULL;
+    localRedisConn = NULL;
     bytes_to_send = 0;
     bytes_have_send = 0;
     m_check_state = CHECK_STATE_REQUESTLINE;
@@ -511,6 +521,14 @@ http_conn::HTTP_CODE http_conn::process_read()
 
 http_conn::HTTP_CODE http_conn::do_request()
 {
+    if(localRedisConn == NULL)
+    {
+        LOG_ERROR("local redis session lose");
+    }
+    else
+    {
+        LOG_ERROR("local redis session INFO: err:%lu,fd:%lu,flag:%lu", localRedisConn->err, localRedisConn->fd, localRedisConn->flags);
+    }
     strcpy(m_real_file, doc_root);
     int len = strlen(doc_root);
     //printf("m_url:%s\n", m_url);
@@ -544,23 +562,13 @@ http_conn::HTTP_CODE http_conn::do_request()
 
         if (*(p + 1) == '3')
         {
-            //如果是注册，先检测数据库中是否有重名的
-            //没有重名的，进行增加数据
-            // char *sql_insert = (char *)malloc(sizeof(char) * 200);
-            // strcpy(sql_insert, "INSERT INTO user(username, passwd) VALUES(");
-            // strcat(sql_insert, "'");
-            // strcat(sql_insert, name);
-            // strcat(sql_insert, "', '");
-            // strcat(sql_insert, password);
-            // strcat(sql_insert, "')");
-
             if (users.find(name) == users.end())
             {
                 m_lock.lock();
-                //int res = mysql_query(mysql, sql_insert);
                 string set_name = name;
                 string set_pass = password;
-                redisReply *res = (redisReply*)redisCommand(localRedisConn, "SET %s %s", set_name.c_str(), set_pass.c_str());
+                string insert2list = (name+'+'+password);
+                redisReply *res = (redisReply*)redisCommand(localRedisConn, "LPUSH users_list %s", insert2list.c_str());
                 users.insert(pair<string, string>(name, password));
                 m_lock.unlock();
 

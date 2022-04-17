@@ -98,7 +98,7 @@ void WebServer::sql_pool()
 void WebServer::redis_pool()
 {
     //初始化数据库连接池
-    RedisConnectionPool *m_redisPool = RedisConnectionPool::RedisPoolInstance();
+    m_redisPool = RedisConnectionPool::RedisPoolInstance();//fatal error when local ptr 
     m_redisPool->init("localhost", m_user, m_passWord, m_databaseName, 6379, m_redis_num, m_close_log);
 
     //初始化数据库读取表

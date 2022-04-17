@@ -22,7 +22,7 @@ public:
 	~CacheConn();
 public:
     redisContext* m_pContext;
-	int RedisLogCtl;
+	int m_close_log;
 private:
     int m_last_connect_time;
 	string R_password;
