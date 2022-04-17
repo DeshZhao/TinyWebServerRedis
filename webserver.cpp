@@ -102,7 +102,7 @@ void WebServer::redis_pool()
     m_redisPool->init("localhost", m_user, m_passWord, m_databaseName, 6379, m_redis_num, m_close_log);
 
     //初始化数据库读取表
-    users->initRedis_result(m_redisPool);
+    users->initRedis_result(m_redisPool, m_close_log);
 }
 
 void WebServer::thread_pool()

@@ -85,10 +85,10 @@ public:
         return &m_address;
     }
     void initmysql_result(connection_pool *connPool);
-    void initRedis_result(RedisConnectionPool *connPool);
+    void initRedis_result(RedisConnectionPool *connPool, int log_ctrl);
     int timer_flag;
     int improv;
-
+    //int m_close_log;
 
 private:
     void init();
@@ -151,7 +151,6 @@ private:
 
     map<string, string> m_users;
     int m_TRIGMode;
-    int m_close_log;
 
     char sql_user[100];
     char sql_passwd[100];

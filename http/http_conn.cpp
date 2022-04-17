@@ -20,6 +20,7 @@ const char *error_500_form = "There was an unusual problem serving the request f
 
 locker m_lock;
 map<string, string> users;
+int m_close_log;
 
 void http_conn::initmysql_result(connection_pool *connPool)
 {
@@ -51,8 +52,9 @@ void http_conn::initmysql_result(connection_pool *connPool)
     }
 }
 
-void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
+void http_conn::initRedis_result(RedisConnectionPool* ConnPool, int log_ctrl)
 {
+    m_close_log = log_ctrl;
     redis = NULL;
     RedisConnectionRAII rediscon(&redis, ConnPool);
     if(redis == NULL)
@@ -78,12 +80,19 @@ void http_conn::initRedis_result(RedisConnectionPool* ConnPool)
         vector<string>temp;
         string x;
         stringstream ss;
-        ss>>Res->str;
+        ss<<Res->str;
         while(getline(ss,x,'+'))
         {
             temp.push_back(x);
         }
-        users[temp[0]] = temp[1];
+        if(temp.size()>1)
+        {
+            users[temp[0]] = temp[1];
+        }
+        else
+        {
+            LOG_ERROR("user info in redis invalid");
+        }
     }
 
     //全局Tokens存入Redis，并设置过期时间
@@ -567,12 +576,12 @@ http_conn::HTTP_CODE http_conn::do_request()
                 m_lock.lock();
                 string set_name = name;
                 string set_pass = password;
-                string insert2list = (name+'+'+password);
+                string insert2list = (set_name+'+'+set_pass);
                 redisReply *res = (redisReply*)redisCommand(localRedisConn, "LPUSH users_list %s", insert2list.c_str());
-                users.insert(pair<string, string>(name, password));
+                users.insert(pair<string, string>(set_name, set_pass));
                 m_lock.unlock();
 
-                if (res->str == "OK")
+                if (1 <= res->integer)
                 {
                     LOG_INFO("set a new user");
                     strcpy(m_url, "/log.html");
@@ -599,6 +608,7 @@ http_conn::HTTP_CODE http_conn::do_request()
     }
 
     redisReply *CheckTokens = NULL;
+    redisReply *Reset_Token = NULL;
     if (*(p + 1) == '0')
     {
         char *m_url_real = (char *)malloc(sizeof(char) * 200);
@@ -625,39 +635,72 @@ http_conn::HTTP_CODE http_conn::do_request()
             strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
 
             free(m_url_real);
+            Reset_Token = (redisReply *)redisCommand(redis->m_pContext, "DEL Token_pictrue");//幂等操作，删除Token
+            if(1 == Reset_Token_pictrue->integer)
+            {
+                LOG_INFO("Token_pictrue is moved");
+            }
         }
         else
         {
+            char *m_url_real = (char *)malloc(sizeof(char) * 200);
+            strcpy(m_url_real, "/repeated.html");
+            strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+
+            free(m_url_real);
             LOG_ERROR("Http request about picture is expired");
         }
     }
     else if (*(p + 1) == '6')
     {
         CheckTokens = (redisReply*)redisCommand(redis->m_pContext, "EXISTS Token_video");
-        if("1" == CheckTokens->str)
+        if(1 == CheckTokens->integer)
         {
             char *m_url_real = (char *)malloc(sizeof(char) * 200);
             strcpy(m_url_real, "/video.html");
             strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
 
             free(m_url_real);
-        }else
+            Reset_Token = (redisReply *)redisCommand(redis->m_pContext, "DEL Token_video");//幂等操作，删除
+            if(1 == Reset_Token_video->integer)
+            {
+                LOG_INFO("Token_video is moved");
+            }
+        }
+        else
         {
+            char *m_url_real = (char *)malloc(sizeof(char) * 200);
+            strcpy(m_url_real, "/repeated.html");
+            strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+
+            free(m_url_real);
             LOG_ERROR("Http request about video is expired");
         }
     }
     else if (*(p + 1) == '7')
     {
         CheckTokens = (redisReply*)redisCommand(redis->m_pContext, "EXISTS Token_fans");
-        if("1" == CheckTokens->str)
+        if(1 == CheckTokens->integer)
         {
             char *m_url_real = (char *)malloc(sizeof(char) * 200);
             strcpy(m_url_real, "/fans.html");
             strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
 
             free(m_url_real);
-        }else
+
+            Reset_Token = (redisReply *)redisCommand(redis->m_pContext, "DEL Token_fans");//幂等操作，删除
+            if(1 == Reset_Token_fans->integer)
+            {
+                LOG_INFO("Token_fans is moved");
+            }
+        }
+        else
         {
+            char *m_url_real = (char *)malloc(sizeof(char) * 200);
+            strcpy(m_url_real, "/repeated.html");
+            strncpy(m_real_file + len, m_url_real, strlen(m_url_real));
+
+            free(m_url_real);
             LOG_ERROR("Http request about fans is expired");
         }
     }
